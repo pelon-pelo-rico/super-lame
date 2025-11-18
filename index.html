@@ -79,9 +79,9 @@
       const c = document.createElement('canvas'); c.width=w; c.height=h;
       const g = c.getContext('2d');
       const grad = g.createLinearGradient(0,0,0,h);
-      grad.addColorStop(0.00, '#9fc9ff');
+      grad.addColorStop(0.00, '#d25596');
       grad.addColorStop(0.65, '#d25596');
-      grad.addColorStop(1.00, '#d8dbe0');
+      grad.addColorStop(1.00, '#d25596');
       g.fillStyle = grad; g.fillRect(0,0,w,h);
       return new THREE.CanvasTexture(c);
     }
