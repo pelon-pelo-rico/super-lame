@@ -2,56 +2,72 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Step 8</title>
+  <title>Step 9</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>body{margin:0}</style>
 </head>
 <body>
-  <a-scene>
-    <!-- Preload three 360 images -->
+  <!-- Renderer: physically-correct, ACES tone mapping, antialias -->
+  <a-scene renderer="physicallyCorrectLights: true; colorManagement: true; toneMapping: ACESFilmicToneMapping; antialias: true">
     <a-assets>
-      <img id="p1" src="afrikaans_church_interior.jpg">
-      <img id="p2" src="industrial_wooden_attic.jpg">
-      <img id="p3" src="rogland_clear_night.jpg">
+      <!-- 360 pano used for background + reflections -->
+      <img id="pano" src="360image01.jpg">
+      <!-- texture for the cylinder -->
+      <img id="tex1" src="texture.jpg">
     </a-assets>
 
-    <!-- Camera: look around with mouse -->
-    <a-entity camera look-controls position="0 1.6 0"></a-entity>
-
-    <!-- Mouse cursor to click the sphere -->
-    <a-entity cursor="rayOrigin: mouse" raycaster="objects: .interactable"></a-entity>
-
     <!-- 360 background -->
-    <a-sky id="sky" src="#p1"></a-sky>
+    <a-sky id="sky" src="#pano"></a-sky>
 
-    <!-- Sphere that changes the 360 background and moves each click -->
-    <a-sphere id="cycler" class="interactable" radius="0.25" color="#FF7F50"></a-sphere>
+    <!-- Soft “ambient” and a key light for crisp highlights -->
+    <a-entity light="type: hemisphere; intensity: 1; groundColor: #666" position="0 4 0"></a-entity>
+    <a-entity light="type: directional; intensity: 1.2" position="2 4 2"></a-entity>
+
+    <!-- Camera/controls -->
+    <a-entity id="rig" wasd-controls position="0 1.6 0">
+      <a-entity camera look-controls></a-entity>
+    </a-entity>
+
+    <!-- Metal sphere (mirror-like) -->
+    <a-sphere position="-1.8 1 -3" radius="0.5"
+              material="metalness: 1; roughness: 0.05; color: #888">
+    </a-sphere>
+
+    <!-- Glass cube (transparent) -->
+    <a-box position="0 1 -3" depth="1" height="1" width="1"
+           material="color: #aaf; opacity: 0.25; transparent: true; metalness: 0.5; roughness: 0.05">
+    </a-box>
+
+    <!-- Shiny plastic cone -->
+    <a-cone position="1.8 1 -3" height="1.2" radius-bottom="0.6"
+            material="color: #ff00ff; metalness: 0.5; roughness: 0.25">
+    </a-cone>
+
+    <!-- Cylinder with image texture -->
+    <a-cylinder position="0 0.75 -1.5" radius="0.4" height="1.5"
+                material="src: #tex1; roughness: 0.4; metalness: 0.1">
+    </a-cylinder>
   </a-scene>
 
   <script>
-    // Minimal cycler: click the sphere -> change sky image and move sphere
-    AFRAME.registerComponent('cycle-panos', {
-      init: function () {
-        this.idx = 0;
-        this.panos = ['#p1', '#p2', '#p3'];
-        this.positions = [
-          new THREE.Vector3(0, 1.25, -2),
-          new THREE.Vector3(-1.2, 1.3, -2.2),
-          new THREE.Vector3(1.4, 1.2, -1.8)
-        ];
-        // place sphere for the initial 360 image
-        this.el.object3D.position.copy(this.positions[this.idx]);
+    // Use the pano as the environment map (reflections) via PMREM
+    const sceneEl = document.querySelector('a-scene');
+    sceneEl.addEventListener('loaded', () => {
+      const renderer = sceneEl.renderer;
+      if (!renderer) return;
 
-        this.el.addEventListener('click', () => {
-          this.idx = (this.idx + 1) % this.panos.length;
-          document.getElementById('sky').setAttribute('src', this.panos[this.idx]);
-          this.el.object3D.position.copy(this.positions[this.idx]);
-        });
-      }
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      new THREE.TextureLoader().load(
+        document.getElementById('pano').getAttribute('src'),
+        (tex) => {
+          tex.mapping = THREE.EquirectangularReflectionMapping;
+          // Prefilter for PBR (smoother, realistic reflections)
+          const envMap = pmrem.fromEquirectangular(tex).texture;
+          sceneEl.object3D.background = tex;     // keep pano as background
+          sceneEl.object3D.environment = envMap; // reflections for PBR
+        }
+      );
     });
-
-    // Attach the component to the sphere
-    document.getElementById('cycler').setAttribute('cycle-panos', '');
   </script>
 </body>
 </html>
